@@ -1,0 +1,225 @@
+#include <iostream>
+#include <thread>
+#include <mutex>
+#include <vector>
+#include <chrono>
+
+using namespace std;
+
+
+const int NUM_CONTROLADORES = 5;
+const int NUM_ZONAS = 5;
+
+
+mutex zonas[NUM_ZONAS];
+
+
+mutex pantalla;
+
+
+void mostrarMensaje(string mensaje) {
+
+    lock_guard<mutex> bloqueo(pantalla);
+
+    cout << mensaje << endl;
+}
+
+
+
+void mostrarSemaforo(int idControlador, int zona, string estado) {
+
+    lock_guard<mutex> bloqueo(pantalla);
+
+    cout << "Controlador " << idControlador
+         << " -> Zona " << zona + 1
+         << " -> Semaforo: " << estado
+         << endl;
+}
+
+
+void ajustarSemaforos(int idControlador, int zonaA, int zonaB) {
+
+    mostrarMensaje(
+        "Controlador " + to_string(idControlador) +
+        " inicia ajuste de semaforos."
+    );
+
+
+    mostrarSemaforo(idControlador, zonaA, "ROJO");
+
+    this_thread::sleep_for(
+        chrono::milliseconds(500)
+    );
+
+    mostrarSemaforo(idControlador, zonaB, "VERDE");
+
+    this_thread::sleep_for(
+        chrono::milliseconds(500)
+    );
+
+    mostrarMensaje(
+        "Controlador " + to_string(idControlador) +
+        " sincronizando semaforos..."
+    );
+
+    this_thread::sleep_for(
+        chrono::milliseconds(700)
+    );
+
+
+    mostrarSemaforo(idControlador, zonaA, "VERDE");
+
+    this_thread::sleep_for(
+        chrono::milliseconds(500)
+    );
+
+    mostrarSemaforo(idControlador, zonaB, "ROJO");
+
+    this_thread::sleep_for(
+        chrono::milliseconds(500)
+    );
+
+    mostrarMensaje(
+        "Controlador " + to_string(idControlador) +
+        " finalizo el ajuste de semaforos."
+    );
+}
+
+
+void ejecutarControlador(int idControlador,
+                         int zonaA,
+                         int zonaB) {
+
+    mostrarMensaje(
+        "Controlador " + to_string(idControlador) +
+        " esta esperando sus zonas."
+    );
+
+  
+
+    this_thread::sleep_for(
+        chrono::milliseconds(300)
+    );
+
+    mostrarMensaje(
+        "Controlador " + to_string(idControlador) +
+        " solicita Zona " + to_string(zonaA + 1) +
+        " y Zona " + to_string(zonaB + 1)
+    );
+
+
+
+    lock(zonas[zonaA], zonas[zonaB]);
+
+
+    lock_guard<mutex> bloqueoA(
+        zonas[zonaA],
+        adopt_lock
+    );
+
+    lock_guard<mutex> bloqueoB(
+        zonas[zonaB],
+        adopt_lock
+    );
+
+
+    mostrarMensaje(
+        "Controlador " + to_string(idControlador) +
+        " obtuvo Zona " + to_string(zonaA + 1) +
+        " y Zona " + to_string(zonaB + 1)
+    );
+
+    
+
+    ajustarSemaforos(
+        idControlador,
+        zonaA,
+        zonaB
+    );
+
+   
+
+    mostrarMensaje(
+        "Controlador " + to_string(idControlador) +
+        " libera Zona " + to_string(zonaA + 1) +
+        " y Zona " + to_string(zonaB + 1)
+    );
+
+   
+}
+
+
+vector<thread> crearControladores() {
+
+    vector<thread> controladores;
+
+    for (int i = 0; i < NUM_CONTROLADORES; i++) {
+
+        int id = i + 1;
+
+
+        int zonaA = i;
+        int zonaB = (i + 1) % NUM_ZONAS;
+
+        controladores.push_back(
+            thread(
+                ejecutarControlador,
+                id,
+                zonaA,
+                zonaB
+            )
+        );
+    }
+
+    return controladores;
+}
+
+void esperarControladores(
+    vector<thread>& controladores) {
+
+    for (size_t i = 0;
+         i < controladores.size();
+         i++) {
+
+        controladores[i].join();
+    }
+}
+
+
+
+int main() {
+
+    cout << endl;
+
+
+    cout << endl;
+
+    cout << "Iniciando controladores de intersecciones..."
+         << endl;
+
+    cout << "Cinco controladores trabajaran "
+         << "de forma concurrente." << endl;
+
+    cout << "Cada controlador necesita dos "
+         << "zonas adyacentes." << endl;
+
+    cout << endl;
+
+    
+
+    vector<thread> controladores =
+        crearControladores();
+
+   
+
+    esperarControladores(controladores);
+
+    cout << endl;
+
+
+    cout << "Todos los controladores terminaron."
+         << endl;
+
+
+    return 0;
+}
